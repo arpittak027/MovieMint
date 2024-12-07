@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import {
-  Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Box,
-  Link,
-  Alert,
+  Container, Paper, Typography, TextField,
+  Button, Box, Link, Alert,
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
+/**
+ * SignupForm Component
+ * Handles user registration with form validation and error handling
+ */
 const SignupForm = () => {
+  // Hooks
   const navigate = useNavigate();
   const { signup } = useAuth();
+
+  // Form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -23,52 +24,54 @@ const SignupForm = () => {
   });
   const [error, setError] = useState('');
 
+  // Validation rules
+  const validations = {
+    name: (value: string) => value.trim() ? '' : 'Name is required',
+    email: (value: string) => {
+      if (!value.trim()) return 'Email is required';
+      if (!value.includes('@')) return 'Please enter a valid email address';
+      return '';
+    },
+    password: (value: string) => 
+      value.length < 6 ? 'Password must be at least 6 characters long' : '',
+    confirmPassword: (value: string) => 
+      value !== formData.password ? 'Passwords do not match' : ''
+  };
+
+  // Event handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
-    // Basic validation
-    if (!formData.name.trim()) {
-      setError('Name is required');
-      return;
-    }
-
-    if (!formData.email.trim()) {
-      setError('Email is required');
-      return;
-    }
-
-    if (!formData.email.includes('@')) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    
+    // Validate all fields
+    for (const [field, validate] of Object.entries(validations)) {
+      const errorMessage = validate(formData[field as keyof typeof formData]);
+      if (errorMessage) {
+        setError(errorMessage);
+        return;
+      }
     }
 
     try {
       await signup(formData.email, formData.password, formData.name);
-      // Signup automatically logs the user in
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
     }
   };
+
+  // Form fields configuration
+  const fields = [
+    { name: 'name', label: 'Name', type: 'text' },
+    { name: 'email', label: 'Email', type: 'email' },
+    { name: 'password', label: 'Password', type: 'password' },
+    { name: 'confirmPassword', label: 'Confirm Password', type: 'password' },
+  ];
 
   return (
     <Container maxWidth="sm" sx={{ mt: 4 }}>
@@ -84,65 +87,36 @@ const SignupForm = () => {
         )}
 
         <form onSubmit={handleSubmit}>
-          <TextField
-            fullWidth
-            label="Name"
-            name="name"
-            value={formData.name}
-            onChange={handleInputChange}
-            margin="normal"
-            required
-          />
-          <TextField
-            fullWidth
-            label="Email"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleInputChange}
-            margin="normal"
-            required
-          />
-          <TextField
-            fullWidth
-            label="Password"
-            name="password"
-            type="password"
-            value={formData.password}
-            onChange={handleInputChange}
-            margin="normal"
-            required
-            helperText="Password must be at least 6 characters long"
-          />
-          <TextField
-            fullWidth
-            label="Confirm Password"
-            name="confirmPassword"
-            type="password"
-            value={formData.confirmPassword}
-            onChange={handleInputChange}
-            margin="normal"
-            required
-          />
+          {fields.map(({ name, label, type }) => (
+            <TextField
+              key={name}
+              fullWidth
+              label={label}
+              name={name}
+              type={type}
+              value={formData[name as keyof typeof formData]}
+              onChange={handleInputChange}
+              margin="normal"
+              required
+            />
+          ))}
+
           <Button
             type="submit"
-            variant="contained"
             fullWidth
-            size="large"
-            sx={{ mt: 3 }}
+            variant="contained"
+            color="primary"
+            sx={{ mt: 3, mb: 2 }}
           >
             Sign Up
           </Button>
-        </form>
 
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
-          <Typography variant="body2">
-            Already have an account?{' '}
-            <Link component={RouterLink} to="/login">
-              Login here
+          <Box textAlign="center">
+            <Link component={RouterLink} to="/login" variant="body2">
+              Already have an account? Log in
             </Link>
-          </Typography>
-        </Box>
+          </Box>
+        </form>
       </Paper>
     </Container>
   );

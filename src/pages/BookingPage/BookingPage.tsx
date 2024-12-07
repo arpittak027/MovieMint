@@ -1,3 +1,12 @@
+/**
+ * BookingPage Component
+ * Handles the movie ticket booking process including:
+ * - Seat selection interface
+ * - Price calculation
+ * - Payment processing
+ * - Booking confirmation
+ */
+
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
@@ -22,18 +31,21 @@ import { Movie, Seat, MovieShowtime } from '../../types/movieTypes';
 import { movies } from '../../data/moviesData';
 import PaymentForm from '../../components/Payment/PaymentForm';
 
+// Constants for different seat types and their characteristics
 const SEAT_TYPES = {
   STANDARD: 'standard',
   VIP: 'vip',
   PREMIUM: 'premium',
 } as const;
 
+// Type definitions for location state passed from MovieDetails
 interface LocationState {
   hallName: string;
   showtime: MovieShowtime;
   movieTitle: string;
 }
 
+// Type definitions for payment form props
 interface PaymentFormProps {
   amount: number;
   movieTitle: string;
@@ -45,6 +57,11 @@ interface PaymentFormProps {
   onPaymentSuccess?: (paymentInfo: any) => void;
 }
 
+/**
+ * Generates a grid of seats for the cinema hall
+ * @param showtime - Contains information about the show timing and pricing
+ * @returns Array of seats with their properties (type, price, booking status)
+ */
 const generateSeats = (showtime: MovieShowtime): Seat[] => {
   const newSeats: Seat[] = [];
   const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -58,12 +75,14 @@ const generateSeats = (showtime: MovieShowtime): Seat[] => {
 
   rows.forEach((rowLetter, rowIndex) => {
     for (let number = 1; number <= 10; number++) {
+      // Determine seat type based on position
       const seatType = number <= 3 
         ? SEAT_TYPES.STANDARD 
         : number <= 7 
           ? SEAT_TYPES.VIP 
           : SEAT_TYPES.PREMIUM;
 
+      // Set price based on seat type
       const price = seatType === SEAT_TYPES.STANDARD 
         ? prices.standard 
         : seatType === SEAT_TYPES.VIP 
@@ -85,19 +104,26 @@ const generateSeats = (showtime: MovieShowtime): Seat[] => {
 };
 
 const BookingPage = () => {
+  // Router and navigation hooks
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Authentication context
   const { isAuthenticated, userProfile, addBooking } = useAuth();
+  
+  // Local state management
   const [activeStep, setActiveStep] = useState(0);
   const [selectedShowtime, setSelectedShowtime] = useState('');
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [bookingComplete, setBookingComplete] = useState(false);
 
+  // Get movie and booking details from location state
   const movie = movies.find((m: Movie) => m.id === id);
   const { hallName, showtime, movieTitle } = (location.state as LocationState) || {};
 
+  // Authentication and data validation check
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -114,18 +140,12 @@ const BookingPage = () => {
       setSeats(newSeats);
       setSelectedShowtime(showtime.showTimes[0]);
     }
-  }, [movie, isAuthenticated, navigate, hallName, showtime]);
+  }, [movie, isAuthenticated, navigate, hallName, showtime, id]);
 
-  if (!movie || !hallName || !showtime) {
-    return <Typography>Invalid booking information</Typography>;
-  }
-
-  const steps = ['Select Showtime', 'Choose Seats', 'Payment'];
-
-  const handleShowtimeChange = (event: SelectChangeEvent<string>) => {
-    setSelectedShowtime(event.target.value);
-  };
-
+  /**
+   * Handles seat selection/deselection
+   * @param seat - The seat being clicked
+   */
   const handleSeatClick = (seat: Seat) => {
     if (seat.isBooked) return;
 
@@ -137,14 +157,10 @@ const BookingPage = () => {
     }
   };
 
-  const handleNext = () => {
-    setActiveStep((prevStep) => prevStep + 1);
-  };
-
-  const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
-  };
-
+  /**
+   * Handles the payment success callback
+   * Creates a booking record and navigates to success page
+   */
   const handlePaymentSuccess = (paymentInfo: any) => {
     const bookingDetails = {
       bookingId: `BK${Date.now()}`,
@@ -156,12 +172,26 @@ const BookingPage = () => {
       bookingDate: new Date().toISOString(),
     };
     
-    // Save booking to user's history
     addBooking(bookingDetails);
-    
     setBookingComplete(true);
-    // Navigate to success page with booking details
-    navigate('/booking-success', { state: bookingDetails });
+    navigate('/booking-success', { state: { booking: bookingDetails } });
+  };
+
+  // Calculate total amount for selected seats
+  const totalAmount = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+
+  const steps = ['Select Showtime', 'Choose Seats', 'Payment'];
+
+  const handleShowtimeChange = (event: SelectChangeEvent<string>) => {
+    setSelectedShowtime(event.target.value);
+  };
+
+  const handleNext = () => {
+    setActiveStep((prevStep) => prevStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevStep) => prevStep - 1);
   };
 
   const getStepContent = () => {
@@ -250,7 +280,7 @@ const BookingPage = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          Book Tickets - {movie.title}
+          Book Tickets - {movie?.title}
         </Typography>
         <Typography variant="subtitle1" gutterBottom>
           {hallName}

@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { Movie, State, City } from '../types/movieTypes';
 import { states } from '../data/locationData';
 import { movies, getMovieById, getMoviesByCategory, getAllMovies } from '../data/moviesData';
 
+/**
+ * Movie Context Interface
+ * Defines the shape of the movie context with location and movie management functions
+ */
 interface MovieContextType {
   states: State[];
   selectedState: string;
@@ -17,27 +21,33 @@ interface MovieContextType {
   setSelectedMovie: (movie: Movie | null) => void;
 }
 
+// Create context with undefined default value
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
 
+/**
+ * MovieProvider Component
+ * Provides movie-related state and functions to child components
+ */
 export const MovieProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Location state
   const [selectedState, setSelectedState] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
+  // Memoized function to get movies by state
   const getMoviesByState = useCallback((stateId: string): Movie[] => {
-    const state: State | undefined = states.find(s => s.id === stateId);
+    const state = states.find(s => s.id === stateId);
     if (!state) return [];
     
-    const movieIds: string[] = state.cities.flatMap((city: City) => 
-      city.cinemaHalls.flatMap(hall => 
-        hall.movies.map(m => m.movieId)
-      )
+    const movieIds = state.cities.flatMap((city: City) => 
+      city.cinemaHalls.flatMap(hall => hall.movies.map(m => m.movieId))
     );
     
-    return movies.filter((movie: Movie) => movieIds.includes(movie.id));
-  }, [states, movies]);
+    return movies.filter(movie => movieIds.includes(movie.id));
+  }, []);
 
-  const value: MovieContextType = {
+  // Memoize context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     states,
     selectedState,
     selectedCity,
@@ -49,7 +59,12 @@ export const MovieProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSelectedState,
     setSelectedCity,
     setSelectedMovie,
-  };
+  }), [
+    selectedState,
+    selectedCity,
+    selectedMovie,
+    getMoviesByState
+  ]);
 
   return (
     <MovieContext.Provider value={value}>
@@ -58,9 +73,13 @@ export const MovieProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
+/**
+ * Custom hook to use movie context
+ * Throws error if used outside MovieProvider
+ */
 export const useMovies = () => {
   const context = useContext(MovieContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useMovies must be used within a MovieProvider');
   }
   return context;

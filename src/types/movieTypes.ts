@@ -11,18 +11,18 @@ export interface Movie {
   id: string;
   title: string;
   description: string;
+  posterUrl: string;
+  trailerUrl: string; // YouTube trailer URL
+  releaseDate: string;
+  duration: number;  // Changed from string to number (in minutes)
   language: string;
-  duration: string;
-  rating: string; 
   category: string;
   cast: string[];
   director: string;
-  releaseDate: string;
-  posterUrl: string;
+  rating: number;    // Changed from string to number
+  reviews?: Review[];
   backdrop?: string;
   genres?: string[];
-  trailer?: string;
-  reviews: Review[];
   prices?: PriceStructure;
 }
 

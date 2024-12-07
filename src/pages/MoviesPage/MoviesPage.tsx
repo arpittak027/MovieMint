@@ -10,7 +10,7 @@ import MovieCard from '../../components/MovieCard/MovieCard';
 import LocationSelector from '../../components/LocationSelector/LocationSelector';
 import MovieFilters from '../../components/MovieFilters/MovieFilters';
 import { Movie, State, City, CinemaHall } from '../../types/movieTypes';
-import { states, movies, getAllCategories } from '../../data/moviesData';
+import { states, movies } from '../../data/moviesData';
 
 const languages = ['All', 'Hindi', 'English', 'Tamil', 'Telugu', 'Malayalam', 'Kannada', 'Bengali', 'Marathi'];
 const categories = ['All', 'Action', 'Drama', 'Comedy', 'Horror', 'Romance'];
@@ -83,7 +83,7 @@ const MoviesPage: React.FC = () => {
             color: 'text.primary'
           }}
         >
-          Movies
+          Now Showing
         </Typography>
         
         <Paper 

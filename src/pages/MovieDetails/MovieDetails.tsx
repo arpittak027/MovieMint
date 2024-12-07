@@ -1,3 +1,14 @@
+/**
+ * MovieDetails Component
+ * Displays detailed information about a specific movie and handles booking functionality
+ * Features:
+ * - Movie information display (title, description, cast, etc.)
+ * - Wishlist functionality
+ * - Hall and showtime selection
+ * - Booking initiation
+ * - Trailer and reminder functionality
+ */
+
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -23,25 +34,51 @@ import { Favorite, FavoriteBorder } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { Movie } from '../../types/movieTypes';
 import { getMovieById } from '../../data/moviesData';
+import TrailerModal from '../../components/TrailerModal/TrailerModal';
+import ReminderDialog from '../../components/ReminderDialog/ReminderDialog';
+import PlayArrow from '@mui/icons-material/PlayArrow';
+import Notifications from '@mui/icons-material/Notifications';
 
+/**
+ * MovieDetails Component
+ * @returns JSX.Element
+ */
 const MovieDetails = () => {
+  // Router hooks for navigation and getting movie ID
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  
+  // Authentication context for user-related functions
   const { userProfile, isAuthenticated, addToWishlist, removeFromWishlist } = useAuth();
   
+  // Local state management
   const [movie, setMovie] = React.useState<Movie | undefined>(undefined);
   const [selectedHall, setSelectedHall] = React.useState('');
   const [selectedShowtime, setSelectedShowtime] = React.useState('');
+  const [trailerOpen, setTrailerOpen] = React.useState(false);
+  const [reminderOpen, setReminderOpen] = React.useState(false);
 
+  // Fetch movie data on component mount
   React.useEffect(() => {
     if (id) {
       const foundMovie = getMovieById(id);
-      setMovie(foundMovie);
+      if (foundMovie) {
+        console.log('Found movie:', foundMovie); // Add logging for debugging
+        setMovie(foundMovie);
+      }
     }
   }, [id]);
   
+  // Check if movie is in user's wishlist
   const isInWishlist = userProfile?.wishlist?.includes(movie?.id || '') || false;
 
+  // Check if the movie is upcoming
+  const isUpcoming = movie?.id.startsWith('upcoming-');
+
+  /**
+   * Handles adding/removing movie from wishlist
+   * Redirects to login if user is not authenticated
+   */
   const handleWishlist = () => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -59,6 +96,12 @@ const MovieDetails = () => {
     }
   };
 
+  /**
+   * Handles the booking process
+   * - Validates authentication
+   * - Checks for hall and showtime selection
+   * - Navigates to booking page with selected details
+   */
   const handleBooking = () => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -87,7 +130,12 @@ const MovieDetails = () => {
     });
   };
 
-  // If movie is not found, show error message
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.error('Image failed to load in MovieDetails:', movie?.posterUrl);
+    e.currentTarget.src = 'https://via.placeholder.com/500x750?text=Movie+Poster+Not+Available';
+  };
+
+  // Show error message if movie is not found
   if (!movie) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -119,8 +167,26 @@ const MovieDetails = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Trailer Modal */}
+      {movie?.trailerUrl && (
+        <TrailerModal
+          open={trailerOpen}
+          onClose={() => setTrailerOpen(false)}
+          trailerUrl={movie.trailerUrl}
+        />
+      )}
+
+      {/* Reminder Dialog */}
+      {isUpcoming && movie && (
+        <ReminderDialog
+          open={reminderOpen}
+          onClose={() => setReminderOpen(false)}
+          movie={movie}
+        />
+      )}
+
       <Grid container spacing={4}>
-        {/* Movie Poster */}
+        {/* Movie Poster Section */}
         <Grid item xs={12} md={4}>
           <Card sx={{ 
             position: 'sticky',
@@ -133,46 +199,83 @@ const MovieDetails = () => {
               component="img"
               image={movie.posterUrl}
               alt={movie.title}
+              onError={handleImageError}
               sx={{ 
-                height: 0,
-                paddingTop: '150%',
-                objectFit: 'cover',
-                backgroundPosition: 'center'
+                width: '100%',
+                height: '100%',
+                minHeight: '400px',
+                objectFit: 'cover'
               }}
             />
           </Card>
         </Grid>
 
-        {/* Movie Details */}
+        {/* Movie Details Section */}
         <Grid item xs={12} md={8}>
+          {/* Title and Actions */}
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'flex-start',
-            mb: 2
+            mb: 2,
+            flexWrap: 'wrap',
+            gap: 2
           }}>
-            <Typography 
-              variant="h4" 
-              component="h1"
-              sx={{ 
-                fontWeight: 'bold',
-                color: 'text.primary'
-              }}
-            >
-              {movie.title}
-            </Typography>
-            <IconButton 
-              onClick={handleWishlist}
-              sx={{
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                }
-              }}
-            >
-              {isInWishlist ? <Favorite color="error" /> : <FavoriteBorder />}
-            </IconButton>
+            <Box sx={{ flex: 1 }}>
+              <Typography 
+                variant="h4" 
+                component="h1"
+                sx={{ 
+                  fontWeight: 'bold',
+                  color: 'text.primary',
+                  mb: 1
+                }}
+              >
+                {movie.title}
+              </Typography>
+              {isUpcoming && (
+                <Chip 
+                  label="Coming Soon" 
+                  color="secondary" 
+                  sx={{ mr: 1 }}
+                />
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {movie.trailerUrl && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => setTrailerOpen(true)}
+                  startIcon={<PlayArrow />}
+                >
+                  Watch Trailer
+                </Button>
+              )}
+              {isUpcoming && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => setReminderOpen(true)}
+                  startIcon={<Notifications />}
+                >
+                  Remind Me
+                </Button>
+              )}
+              <IconButton 
+                onClick={handleWishlist}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+              >
+                {isInWishlist ? <Favorite color="error" /> : <FavoriteBorder />}
+              </IconButton>
+            </Box>
           </Box>
 
+          {/* Basic Information */}
           <Typography 
             variant="h6" 
             color="text.secondary" 
@@ -181,145 +284,86 @@ const MovieDetails = () => {
             {movie.language} | {movie.duration} mins | {movie.category}
           </Typography>
 
-          <Box sx={{ my: 3 }}>
-            <Typography 
-              variant="body1" 
-              paragraph
-              sx={{ 
-                lineHeight: 1.7,
-                color: 'text.secondary'
-              }}
-            >
-              {movie.description}
+          {/* Description */}
+          <Typography 
+            variant="body1" 
+            paragraph
+            sx={{ 
+              mb: 3,
+              lineHeight: 1.7
+            }}
+          >
+            {movie.description}
+          </Typography>
+
+          {/* Cast and Director */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>Cast & Crew</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+              {movie.cast.map((actor, index) => (
+                <Chip
+                  key={index}
+                  label={actor}
+                  variant="outlined"
+                />
+              ))}
+            </Box>
+            <Typography variant="body1">
+              <strong>Director:</strong> {movie.director}
             </Typography>
           </Box>
 
-          <Divider sx={{ my: 2 }} />
-
-          <Typography variant="h6" gutterBottom>Cast</Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-            {movie.cast.map((actor, index) => (
-              <Chip key={index} label={actor} variant="outlined" />
-            ))}
-          </Box>
-
-          <Typography variant="h6" gutterBottom>Director</Typography>
-          <Typography variant="body1" paragraph>{movie.director}</Typography>
-
-          <Typography variant="h6" gutterBottom>Release Date</Typography>
-          <Typography variant="body1" paragraph>
-            {new Date(movie.releaseDate).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
+          {/* Release Date */}
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            <strong>Release Date:</strong> {new Date(movie.releaseDate).toLocaleDateString()}
           </Typography>
 
-          {movie.genres && (
+          {/* Booking Section - Only show if not upcoming */}
+          {!isUpcoming && (
             <>
-              <Typography variant="h6" gutterBottom>Genres</Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
-                {movie.genres.map((genre, index) => (
-                  <Chip key={index} label={genre} color="primary" variant="outlined" />
-                ))}
-              </Box>
-            </>
-          )}
-
-          {/* Showtimes and Booking Section */}
-          <Divider sx={{ my: 3 }} />
-          <Typography variant="h5" gutterBottom>
-            Book Tickets
-          </Typography>
-          <Box sx={{ mt: 2 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Select Hall</InputLabel>
+              <Divider sx={{ my: 3 }} />
+              
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>Book Tickets</Typography>
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>Select Cinema Hall</InputLabel>
                   <Select
                     value={selectedHall}
-                    label="Select Hall"
                     onChange={(e) => setSelectedHall(e.target.value)}
+                    label="Select Cinema Hall"
                   >
-                    <MenuItem value="Hall A">Hall A</MenuItem>
-                    <MenuItem value="Hall B">Hall B</MenuItem>
-                    <MenuItem value="Hall C">Hall C</MenuItem>
+                    <MenuItem value="hall1">PVR Cinemas - Phoenix Mall</MenuItem>
+                    <MenuItem value="hall2">INOX - R City Mall</MenuItem>
+                    <MenuItem value="hall3">Cinepolis - Thane</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
+
+                <FormControl fullWidth sx={{ mb: 3 }}>
                   <InputLabel>Select Showtime</InputLabel>
                   <Select
                     value={selectedShowtime}
-                    label="Select Showtime"
                     onChange={(e) => setSelectedShowtime(e.target.value)}
+                    label="Select Showtime"
                   >
-                    <MenuItem value="10:00 AM">10:00 AM</MenuItem>
-                    <MenuItem value="2:00 PM">2:00 PM</MenuItem>
-                    <MenuItem value="6:00 PM">6:00 PM</MenuItem>
-                    <MenuItem value="9:00 PM">9:00 PM</MenuItem>
+                    <MenuItem value="10:00">10:00 AM</MenuItem>
+                    <MenuItem value="13:00">1:00 PM</MenuItem>
+                    <MenuItem value="16:00">4:00 PM</MenuItem>
+                    <MenuItem value="19:00">7:00 PM</MenuItem>
+                    <MenuItem value="22:00">10:00 PM</MenuItem>
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12}>
+
                 <Button
                   variant="contained"
                   color="primary"
-                  fullWidth
                   size="large"
+                  fullWidth
                   onClick={handleBooking}
-                  disabled={!selectedHall || !selectedShowtime}
-                  sx={{ mt: 2 }}
                 >
                   Book Now
                 </Button>
-              </Grid>
-            </Grid>
-          </Box>
-
-          {/* Reviews Section */}
-          <Divider sx={{ my: 3 }} />
-          <Typography variant="h5" gutterBottom>
-            Reviews
-          </Typography>
-          {movie.reviews && movie.reviews.length > 0 ? (
-            <Box sx={{ mt: 2 }}>
-              {movie.reviews.map((review) => (
-                <Paper
-                  key={review.id}
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    mb: 2,
-                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                      {review.userId.charAt(0)}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
-                        {review.userId}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(review.date).toLocaleDateString()}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Rating value={review.rating} readOnly precision={0.1} sx={{ mb: 1 }} />
-                  <Typography variant="body1" color="text.secondary">
-                    {review.comment}
-                  </Typography>
-                </Paper>
-              ))}
-            </Box>
-          ) : (
-            <Typography variant="body1" color="text.secondary">
-              No reviews yet.
-            </Typography>
+              </Box>
+            </>
           )}
         </Grid>
       </Grid>
